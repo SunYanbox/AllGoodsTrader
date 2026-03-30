@@ -13,3 +13,5 @@ riderModule.iml
 **/*.pdb
 **/*.props
 **/obj/
+
+launchSettings.json
