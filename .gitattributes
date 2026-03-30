@@ -1,0 +1,11 @@
+# 将所有图片文件标记为二进制，禁止换行符转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.webp binary
+
+# 将所有 DLL 文件标记为二进制
+*.dll binary
