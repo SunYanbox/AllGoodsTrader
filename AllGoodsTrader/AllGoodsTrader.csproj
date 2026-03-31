@@ -19,7 +19,6 @@
     <!-- 需要复制的数据库, 资源文件 -->
     <ItemGroup>
         <DatabasePath Include="data\**\*.*"/>
-        <ResPath Include="res\**\*.*"/>
     </ItemGroup>
 
     <!-- 路径变量 -->
@@ -37,8 +36,6 @@
         <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(BeforeZipPath)"/>
         <Copy SourceFiles="@(DatabasePath)"
               DestinationFolder="$(BeforeZipPath)data\%(RecursiveDir)"/>
-        <Copy SourceFiles="@(ResPath)"
-              DestinationFolder="$(BeforeZipPath)res\%(RecursiveDir)"/>
         <Copy SourceFiles="@(WWWRootPath)"
               DestinationFolder="$(BeforeZipPath)wwwroot\%(RecursiveDir)"/>
         <Exec WorkingDirectory="$(OutputPath)" Command="$(ZipToolPath) a -t7z -mx=9 $(AssemblyName)-$(Version).7z SPT\"/>
@@ -70,10 +67,6 @@
         <!-- 复制数据库文件-->
         <Copy SourceFiles="@(DatabasePath)"
               DestinationFolder="$(SPTModPath)data\%(RecursiveDir)"/>
-
-        <!-- 复制静态资源文件-->
-        <Copy SourceFiles="@(ResPath)"
-              DestinationFolder="$(BeforeZipPath)res\%(RecursiveDir)"/>
 
         <Copy SourceFiles="@(FilesToCopy)" DestinationFolder="$(SPTModPath)"/>
 
