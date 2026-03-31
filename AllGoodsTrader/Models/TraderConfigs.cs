@@ -59,7 +59,7 @@ public static class TraderConfigs
                 "ch", new TraderLocales
                 {
                     Name = "装备商",
-                    Nickname = "护甲师",
+                    Nickname = "装备商",
                     Location = "装备仓库",
                     Description = "提供护甲、头盔、背包、胸挂等战术装备"
                 }
@@ -92,8 +92,8 @@ public static class TraderConfigs
                 "ch", new TraderLocales
                 {
                     Name = "消耗品商",
-                    Nickname = "医师",
-                    Location = "医疗站",
+                    Nickname = "消耗品商",
+                    Location = "消耗品仓库",
                     Description = "供应食物、饮品、医疗物品及各类消耗品"
                 }
             },
@@ -123,7 +123,7 @@ public static class TraderConfigs
                 "ch", new TraderLocales
                 {
                     Name = "杂物商",
-                    Nickname = "收藏家",
+                    Nickname = "杂物商",
                     Location = "旧货市场",
                     Description = "收购各类杂物、以物易物物品、钥匙等",
                 }
