@@ -34,9 +34,9 @@ public class ItemCategoryService(
     /// <summary>
     /// 根据模组配置获取物品价格
     /// </summary>
-    /// <param name="itemId"></param>
+    /// <param name="itemTplId">物品的模板Id</param>
     /// <returns></returns>
-    public double GetItemPrice(MongoId itemId)
+    public double GetItemPrice(MongoId itemTplId)
     {
         if (_modConfig is null)
         {
@@ -56,10 +56,10 @@ public class ItemCategoryService(
             }
         }
         
-        double? handbookPrice = itemHelper.GetItemPrice(itemId);
+        double? handbookPrice = itemHelper.GetItemPrice(itemTplId);
         double? ragfairPrice = ragfairController.GetItemMinAvgMaxFleaPriceValues(new GetMarketPriceRequestData
         {
-            TemplateId = itemId
+            TemplateId = itemTplId
         }).Avg;
         
         double? basePrice = _modConfig.PriceMode switch

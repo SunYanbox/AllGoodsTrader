@@ -34,6 +34,22 @@ public class TraderFactory(
     private readonly RagfairConfig _ragfairConfig = configServer.GetConfig<RagfairConfig>();
     private string PathToMod => modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
     private readonly string RoublesString = Money.ROUBLES.ToString();
+    
+    public static readonly List<MongoId> SecureContainerIds =
+    [
+        ItemTpl.SECURE_CONTAINER_ALPHA,
+        ItemTpl.SECURE_CONTAINER_BETA,
+        ItemTpl.SECURE_CONTAINER_BOSS,
+        ItemTpl.SECURE_CONTAINER_EPSILON,
+        ItemTpl.SECURE_CONTAINER_GAMMA,
+        ItemTpl.SECURE_CONTAINER_GAMMA_TUE,
+        ItemTpl.SECURE_CONTAINER_KAPPA,
+        ItemTpl.SECURE_CONTAINER_KAPPA_DESECRATED,
+        ItemTpl.SECURE_CONTAINER_THETA,
+        ItemTpl.SECURE_DEVELOPER_SECURE_CONTAINER,
+        ItemTpl.SECURE_TOURNAMENT_SECURED_CONTAINER,
+        ItemTpl.SECURE_WAIST_POUCH
+    ];
 
     public Task OnLoad()
     {
@@ -74,20 +90,48 @@ public class TraderFactory(
         AddTraderToLocales(traderData);
 
         
-        List<TemplateItem> items = itemCategoryService.GetItemTemplate(traderData.BaseClasses);
-        foreach (TemplateItem templateItem in items)
+        List<TemplateItem> itemsToAdd = itemCategoryService.GetItemTemplate(traderData.BaseClasses);
+
+        long successSecureCount = 0;
+        if (traderData.Id == TraderConfigs.MiscTrader.Id)
         {
+            foreach (MongoId secureContainerId in SecureContainerIds)
+            {
+                if (databaseService.GetTables().Templates
+                        .Items.TryGetValue(secureContainerId, out TemplateItem? templateItem))
+                {
+                    itemsToAdd.Add(templateItem);
+                    successSecureCount++;
+                }
+            }
+            logger.Debug($"成功添加安全箱容器到Trader({traderBase.Id}){successSecureCount}个, 成功率: {(successSecureCount) /SecureContainerIds.Count:P2}");
+        }
+
+        List<Item> complexItems = [];
+
+        long successSpecialItems = 0;
+        long successHasSlotsItems = 0;
+        long successCommonItems = 0;
+        
+        foreach (TemplateItem templateItem in itemsToAdd)
+        {
+            complexItems.Clear();
+            complexItems.Add(new Item
+            {
+                Id = new MongoId(),
+                Template = templateItem.Id,
+                ParentId = DefaultParentIdAndSlotId,
+                SlotId = DefaultParentIdAndSlotId
+            });
+            if (HandleSpecialItems(complexItems, templateItem))
+            {
+                successSpecialItems++;
+                assortCreator.Export(traderBase.Id);
+                continue;
+            }
+            
             if (itemHelper.ItemHasSlots(templateItem.Id))
             {
-                List<Item> complexItems = [
-                    new()
-                    {
-                        Id = new MongoId(),
-                        Template = templateItem.Id,
-                        ParentId = DefaultParentIdAndSlotId,
-                        SlotId = DefaultParentIdAndSlotId
-                    }
-                ];
                 itemHelper.AddChildSlotItems(complexItems, templateItem, requiredOnly: true);
                 double price = 0;
                 foreach (Item complexItem in complexItems)
@@ -96,10 +140,11 @@ public class TraderFactory(
                 }
                 if ((int)price <= 0)
                 {
-                    logger.Debug($"[AllGoodsTrader] Item(Id={templateItem.Id} with child) Price must be greater than 0. (Any child price == 0 or cant add child to root item)");
+                    logger.Warning($"[AllGoodsTrader] Item(Id={templateItem.Id} with child) Price must be greater than 0. (Any child price == 0 or cant add child to root item)");
                     continue;
                 }
-                
+
+                successHasSlotsItems++;
                 assortCreator
                     .CreateComplexAssortItem(complexItems)
                     .AddUnlimitedStackCount()
@@ -115,6 +160,8 @@ public class TraderFactory(
                     logger.Debug($"[AllGoodsTrader] Item(Id={templateItem.Id}) Price must be greater than 0.");
                     continue;
                 }
+
+                successCommonItems++;
                 assortCreator
                     .CreateSingleAssortItem(templateItem.Id)
                     .AddUnlimitedStackCount()
@@ -123,6 +170,106 @@ public class TraderFactory(
                     .Export(traderBase.Id);
             }
         }
+        
+        logger.Debug($"[AllGoodsTrader] 为商人Trader({traderBase.Id})添加物品成功率: " +
+                     $"{(double)(successCommonItems + successHasSlotsItems + successSpecialItems) / itemsToAdd.Count:P4}\n" +
+                     $"\t{{ 普通物品: ({successCommonItems}), 有槽位物品: {successHasSlotsItems}, 特殊物品: {successSpecialItems} }} / 总物品: {itemsToAdd.Count}");
+    }
+
+    /// <summary>
+    /// 处理特殊插槽物品
+    /// </summary>
+    /// <param name="items">只有一个根物体的列表</param>
+    /// <param name="templateItem">根物品模板</param>
+    /// <returns>是否是特殊物品</returns>
+    public bool HandleSpecialItems(List<Item> items, TemplateItem templateItem)
+    {
+        // 火箭筒
+        if (templateItem.Id == ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER)
+        {
+            double priceRocket725Shg2 = 
+                itemCategoryService.GetItemPrice(ItemTpl.ROCKET_725_SHG2)
+                + itemCategoryService.GetItemPrice(ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER);
+
+            if ((int)priceRocket725Shg2 <= 0)
+            {
+                logger.Error("[AllGoodsTrader] ItemTpl.ROCKET_725_SHG2 with child price = 0");
+                return false;
+            }
+
+            items.Add(new Item
+            {
+                Id = new MongoId(),
+                Template = ItemTpl.ROCKET_725_SHG2,
+                ParentId = items[0].Id.ToString(),
+                SlotId = "patron_in_weapon"
+            });
+            
+            assortCreator
+                .CreateComplexAssortItem(items)
+                .AddUnlimitedStackCount()
+                .AddMoneyCost(Money.ROUBLES, (int)priceRocket725Shg2)
+                .AddLoyaltyLevel(1);
+            
+            logger.Debug($"处理火箭发射器{templateItem.Id}结果: {items.Count == 2}");
+            
+            return true;
+        }
+
+        // 弹药盒
+        if (itemHelper.IsOfBaseclass(templateItem.Id, BaseClasses.AMMO_BOX))
+        {
+            if (templateItem.Properties == null || templateItem.Properties.StackSlots == null)
+                return false;
+            var parentId = items[0].Id.ToString();
+            double price = itemCategoryService.GetItemPrice(templateItem.Id);
+            foreach (StackSlot stackSlot in templateItem.Properties.StackSlots)
+            {
+                if (stackSlot.Properties == null || stackSlot.Properties.Filters == null || stackSlot.MaxCount == null) continue;
+                foreach (SlotFilter filter in stackSlot.Properties.Filters)
+                {
+                    if (filter.Filter == null) continue;
+                    foreach (MongoId ammoTpl in filter.Filter)
+                    {
+                        price += itemCategoryService.GetItemPrice(ammoTpl);
+                        var ammoInner = new Item
+                        {
+                            Id = new MongoId(),
+                            Template = ammoTpl,
+                            ParentId = parentId,
+                            SlotId = "cartridges",
+                            Location = 0,
+                            Upd = new Upd
+                            {
+                                StackObjectsCount= stackSlot.MaxCount
+                            },
+                        };
+                        // logger.Debug($"[AllGoodsTrader] 已添加弹药盒的弹药: {ammoInner}\n");
+                        items.Add(ammoInner);
+                        // logger.Info($"[AllGoodsTrader] 弹药盒的弹药ID(Tpl: {ammoTpl}, dynamicId: {ammodynamicId})\n\t在assort中的数量: {assort.Items.Count(x => x.Id == ammoInner.Id)}\n");
+                    }
+                }
+            }
+            
+            if ((int)price <= 0)
+            {
+                logger.Error($"[AllGoodsTrader] AMMO_BOX({templateItem.Id}) with child price = 0");
+                return false;
+            }
+            
+            assortCreator
+                .CreateComplexAssortItem(items)
+                .AddUnlimitedStackCount()
+                .AddMoneyCost(Money.ROUBLES, (int)price)
+                .AddLoyaltyLevel(1);
+            
+            // 这一句不隐藏太卡了
+            // logger.Debug($"处理弹药盒{templateItem.Id}结果: {items.Count == 2}"); // \n```json\n{jsonUtil.Serialize(items, true)}\n```
+            
+            return true;
+        }
+
+        return false;
     }
     
     public void AddTraderToLocales(TraderData traderData)
