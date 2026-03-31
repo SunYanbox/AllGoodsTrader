@@ -3,7 +3,7 @@ using JetBrains.Annotations;
 
 namespace AllGoodsTrader.Configs;
 
-internal sealed record ModConfig
+public sealed record ModConfig
 {
     /// <summary> 价格修正 </summary>
     [JsonPropertyName("priceModify")]
