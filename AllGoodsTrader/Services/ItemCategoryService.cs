@@ -1,5 +1,3 @@
-using System.Reflection;
-using AllGoodsTrader.Configs;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Controllers;
 using SPTarkov.Server.Core.DI;
@@ -7,10 +5,7 @@ using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Ragfair;
-using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
-using SPTarkov.Server.Core.Utils;
-using Path = System.IO.Path;
 
 namespace AllGoodsTrader.Services;
 
@@ -19,18 +14,12 @@ namespace AllGoodsTrader.Services;
 /// 用于按分类筛选物品
 /// </summary>
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.TraderRegistration + 1)]
-public class ItemCategoryService(
-    JsonUtil jsonUtil,
-    ModHelper modHelper,
+public sealed class ItemCategoryService(
     ItemHelper itemHelper,
     DatabaseService databaseService,
-    RagfairController ragfairController,
-    ISptLogger<ItemCategoryService> logger)
+    ModConfigService modConfigService,
+    RagfairController ragfairController)
 {
-    private string PathToMod => modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
-    private string ConfigPath => Path.Combine(PathToMod, "data", "config.json");
-    private ModConfig? _modConfig;
-    
     /// <summary>
     /// 根据模组配置获取物品价格
     /// </summary>
@@ -38,38 +27,20 @@ public class ItemCategoryService(
     /// <returns></returns>
     public double GetItemPrice(MongoId itemTplId)
     {
-        if (_modConfig is null)
-        {
-            try
-            {
-                _modConfig = jsonUtil.DeserializeFromFile<ModConfig>(ConfigPath);
-            }
-            catch (Exception e)
-            {
-                logger.Error($"加载配置文件\"{ConfigPath}\"失败, 将使用默认配置", e);
-            }
-
-            if (_modConfig is null)
-            {
-                _modConfig = new ModConfig();
-                File.WriteAllText(ConfigPath, jsonUtil.Serialize(_modConfig, true));
-            }
-        }
-        
         double? handbookPrice = itemHelper.GetItemPrice(itemTplId);
         double? ragfairPrice = ragfairController.GetItemMinAvgMaxFleaPriceValues(new GetMarketPriceRequestData
         {
             TemplateId = itemTplId
         }).Avg;
         
-        double? basePrice = _modConfig.PriceMode switch
+        double? basePrice = modConfigService.Config.PriceMode switch
         {
             "Handbook" => handbookPrice,
             "AvgRagfair" => ragfairPrice,
             _ => GetMinValue(handbookPrice, ragfairPrice)  // 默认模式：取最小值
         };
         
-        return (basePrice ?? 0) * (_modConfig.PriceModify ?? 1.0);
+        return (basePrice ?? 0) * (modConfigService.Config.PriceModify ?? 1.0);
         
         // 获取两个可空值中的最小值，如果其中一个为 null 则返回另一个，都为 null 则返回 null
         double? GetMinValue(double? a, double? b)
