@@ -1,7 +1,14 @@
 {
-  "_id": "66eeef8b2a166b73d2066a7e",
+  // 是否启用此物品
+  "enabled": true,
+  // 是否启用维修功能
+  "availableRepair": false,
+  // 是否启用保险功能
+  "availableInsurance": false,
+  
+  // 可重写属性(重写的数据有误会导致模组使用默认值覆盖所有数据, 每次修改前建议备份):
+  
   "availableInRaid": false,
-  "avatar": "/files/trader/avatar/cat.jpg",
   "balance_dol": 0,
   "balance_eur": 0,
   "balance_rub": 7000000,
@@ -11,6 +18,7 @@
   "discount": 0,
   "discount_end": 0,
   "gridHeight": 120,
+  // 没有手动设置`insurance`时才会使用`availableInsurance`对应的默认设置
   "insurance": {
     "availability": false,
     "excluded_category": [],
@@ -50,7 +58,6 @@
       "6707d0bdaab679420007e01a"
     ]
   },
-  "location": "",
   "loyaltyLevels": [
     {
       "buy_price_coef": 38,
@@ -64,13 +71,12 @@
     }
   ],
   "medic": false,
-  "name": "Cat",
-  "nextResupply": 1615141448,
-  "nickname": "Maxwell",
+  "nextResupply": 0,
   "prohibitedTransferableItems": {
     "category": [],
     "id_list": []
   },
+  // 没有手动设置`repair`时才会使用`availableRepair`对应的默认设置
   "repair": {
     "availability": false,
     "currency": "5449016a4bdc2d6f028b456f",
@@ -83,7 +89,6 @@
   },
   "sell_category": [],
   "sell_modifier_for_prohibited_items": 0,
-  "surname": " ",
   "transferableItems": {
     "category": [],
     "id_list": []

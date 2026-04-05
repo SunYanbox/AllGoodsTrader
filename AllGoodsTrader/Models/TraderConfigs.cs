@@ -15,6 +15,27 @@ public static class TraderConfigs
         ConsumablesTrader,
         MiscTrader
     ];
+
+    public static HashSet<MongoId> ExistTraderIds =>
+    [
+        WeaponsTrader.Id,
+        GearTrader.Id,
+        ConsumablesTrader.Id,
+        MiscTrader.Id
+    ];
+
+    public static TraderData? GetTraderData(MongoId traderId)
+    {
+        if (ExistTraderIds.Contains(traderId))
+        {
+            if (traderId == WeaponsTrader.Id) return WeaponsTrader;
+            if (traderId == GearTrader.Id) return GearTrader;
+            if (traderId == ConsumablesTrader.Id) return ConsumablesTrader;
+            if (traderId == MiscTrader.Id) return MiscTrader;
+        }
+
+        return null;
+    }
     
     /// <summary>
     /// 武器配件商人配置
