@@ -1,4 +1,5 @@
 using System.Reflection;
+using AllGoodsTrader.Configs;
 using AllGoodsTrader.Services;
 using AllGoodsTrader.SptHelpers;
 using SPTarkov.DI.Annotations;
@@ -23,11 +24,12 @@ public class TraderFactory(
     ItemHelper itemHelper,
     ImageRouter imageRouter,
     ConfigServer configServer,
-    ISptLogger<TraderFactory> logger,
     DatabaseServer databaseService,
+    ISptLogger<TraderFactory> logger,
+    ModConfigService modConfigService,
+    ItemCategoryService itemCategoryService,
     FluentTraderAssortCreator assortCreator,
-    AddCustomTraderHelper addCustomTraderHelper,
-    ItemCategoryService itemCategoryService
+    AddCustomTraderHelper addCustomTraderHelper
     ): IOnLoad
 {
     private readonly TraderConfig _traderConfig = configServer.GetConfig<TraderConfig>();
@@ -57,7 +59,12 @@ public class TraderFactory(
         {
             try
             {
-                AddTrader(traderData);
+                ModTraderConfig modTraderConfig = modConfigService.Traders[traderData.Id];
+                if (!modTraderConfig.Enabled)
+                {
+                    continue;
+                }
+                AddTrader(modTraderConfig.AsTraderBase(traderData), traderData);
             }
             catch (Exception e)
             {
@@ -68,10 +75,8 @@ public class TraderFactory(
         return Task.CompletedTask;
     }
 
-    public void AddTrader(TraderData traderData)
+    public void AddTrader(TraderBase traderBase, TraderData traderData)
     {
-        TraderBase traderBase = CreateTraderBase(traderData, traderData.AvailableRepair, traderData.AvailableInsurance);
-        
         // Create a helper class and use it to register our traders image/icon + set its stock refresh time
         imageRouter.AddRoute(traderBase.Avatar!.Replace(".png", ""), System.IO.Path.Combine(PathToMod, traderData.AvatarFilePath));
         addCustomTraderHelper.SetTraderUpdateTime(_traderConfig, traderBase, timeUtil.GetHoursAsSeconds(1), timeUtil.GetHoursAsSeconds(2));
@@ -307,108 +312,4 @@ public class TraderFactory(
     }
 
     private const string DefaultParentIdAndSlotId = "hideout";
-    
-    /// <summary>
-    /// 创建商人基础配置
-    /// </summary>
-    private static TraderBase CreateTraderBase(TraderData traderData, 
-        bool repair = false,
-        bool insurance = false)
-    {
-        var traderBase = new TraderBase
-        {
-            Id = traderData.Id,
-            Name = traderData.Locales[TraderData.DefaultLocale].Name,
-            Nickname = traderData.Locales[TraderData.DefaultLocale].Nickname,
-            Location = traderData.Locales[TraderData.DefaultLocale].Location,
-            Avatar = $"/files/trader/avatar/{traderData.Avatar}",
-            Currency = CurrencyType.RUB,
-            UnlockedByDefault = true,
-            AvailableInRaid = false,
-            GridHeight = 120,
-            BalanceRub = 7000_0000,
-            BalanceDollar = 0,
-            BalanceEuro = 0,
-            BuyerUp = false,
-            CustomizationSeller = false,
-            Discount = 0,
-            DiscountEnd = 0,
-            IsAvailableInPVE = true,
-            IsCanTransferItems = false,
-            IsCanTransferItemsFromPve = false,
-            Medic = false,
-            NextResupply = 0,
-            SellCategory = [],
-            TransferableItems = new ItemBuyData
-            {
-                Category = [],
-                IdList = []
-            },
-            ProhibitedTransferableItems = new ItemBuyData
-            {
-                Category = [],
-                IdList = []
-            },
-            ProhibitedItemsSellModifier = 0,
-            Surname = traderData.Locales[TraderData.DefaultLocale].Nickname,
-            ItemsBuy = new ItemBuyData
-            {
-                Category =
-                [
-                    BaseClasses.ITEM
-                ],
-                IdList = []
-            },
-            ItemsBuyProhibited = new ItemBuyData
-            {
-                Category = [],
-                IdList = []
-            },
-            Insurance = new TraderInsurance
-            {
-                Availability = false,
-                ExcludedCategory = [],
-                MaxReturnHour = 0,
-                MaxStorageTime = 99,
-                MinPayment = 0,
-                MinReturnHour = 0
-            },
-            Repair = new TraderRepair
-            {
-                Availability = false,
-                Currency = Money.ROUBLES,
-                CurrencyCoefficient = 1,
-                ExcludedCategory = [],
-                ExcludedIdList = [],
-                Quality = 0,
-                PriceRate = 0.8
-            },
-            LoyaltyLevels =
-            [
-                new TraderLoyaltyLevel
-                {
-                    BuyPriceCoefficient = 30,
-                    ExchangePriceCoefficient = 0,
-                    HealPriceCoefficient = 0,
-                    InsurancePriceCoefficient = 20,
-                    MinLevel = 1,
-                    MinSalesSum = 0,
-                    MinStanding = 0,
-                    RepairPriceCoefficient = 130
-                }
-            ]
-        };
-
-        if (repair)
-        {
-            traderBase.Repair.Availability = true;
-        }
-
-        if (insurance)
-        {
-            traderBase.Insurance.Availability = true;
-        }
-
-        return traderBase;
-    }
 }
