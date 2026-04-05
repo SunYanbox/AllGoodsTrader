@@ -366,7 +366,7 @@ public class TraderFactory(
             },
             Insurance = new TraderInsurance
             {
-                Availability = false,
+                Availability = insurance,
                 ExcludedCategory = [],
                 MaxReturnHour = 0,
                 MaxStorageTime = 99,
@@ -375,7 +375,7 @@ public class TraderFactory(
             },
             Repair = new TraderRepair
             {
-                Availability = false,
+                Availability = repair,
                 Currency = Money.ROUBLES,
                 CurrencyCoefficient = 1,
                 ExcludedCategory = [],
@@ -398,17 +398,7 @@ public class TraderFactory(
                 }
             ]
         };
-
-        if (repair)
-        {
-            traderBase.Repair.Availability = true;
-        }
-
-        if (insurance)
-        {
-            traderBase.Insurance.Availability = true;
-        }
-
+        
         return traderBase;
     }
 }
