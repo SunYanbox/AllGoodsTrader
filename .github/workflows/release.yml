@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  release:
+    types: [published] # 只在 Release 被发布时触发（不覆盖草稿）
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Upload
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # 依据 AllGoodsTrader.csproj 的 TargetFramework 调整（当前为 net10.0）
+          dotnet-version: '10.0.x'
+
+      # 缓存 NuGet 全局包目录，命中后无需重新下载 SPTushonka.* 等依赖。
+      # key 以 csproj / slnx 内容的哈希为准，依赖变化时自动失效。
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx', '**/*.sln') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      # ZipRelease target 里 Condition="'$(Configuration)' == 'Release'"，
+      # 因此必须显式传 -c Release 才会产出 ReleaseZip\*.zip。
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      # 上传的资产名形如 Suntion-AllGoodsTrader-2.0.0.zip，
+      # 用 glob 匹配，版本号变化时无需改 workflow。
+      - name: Upload asset to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: AllGoodsTrader/ReleaseZip/*.zip

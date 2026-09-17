@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.slnx'
+      - '**/*.sln'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - '.editorconfig'
+      - 'global.json'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.slnx'
+      - '**/*.sln'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - '.editorconfig'
+      - 'global.json'
+      - '.github/workflows/**'
+
+# 同一分支的新提交会取消旧的正在运行的 CI，节省额度
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ============ 代码质量检查（格式化 + 编译） ============
+  quality:
+    name: Quality (format + build)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # 与 AllGoodsTrader.csproj 的 TargetFramework 保持一致
+          dotnet-version: '10.0.x'
+
+      # 缓存 NuGet 全局包目录，命中后无需重新下载 SPTushonka.* 等依赖。
+      # key 以 csproj / slnx 内容哈希为准，依赖变化时自动失效。
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx', '**/*.sln') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      # 依据 .editorconfig 校验格式；有偏差直接失败。
+      # --verify-no-changes: 不写回文件，只在有差异时返回非零退出码。
+      - name: dotnet format --verify-no-changes
+        run: dotnet format --verify-no-changes --no-restore --verbosity diagnostic
+
+      # 把编译警告当错误，避免 warnings 悄悄累积。
+      - name: Build (Release, warnings as errors)
+        run: dotnet build -c Release --no-restore -warnaserror
