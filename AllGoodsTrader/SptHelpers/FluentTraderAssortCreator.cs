@@ -1,3 +1,6 @@
+// 本文件的部分代码改编自 SP-Tushonka/server-mod-examples
+// Copyright (c) 2026 SP-Tushonka
+// 依据 MIT 许可证授权。完整许可证文本见 https://github.com/SP-Tushonka/server-mod-examples/blob/main/LICENSE
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
