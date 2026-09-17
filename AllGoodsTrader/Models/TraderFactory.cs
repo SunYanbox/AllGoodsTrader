@@ -30,13 +30,13 @@ public class TraderFactory(
     ItemCategoryService itemCategoryService,
     FluentTraderAssortCreator assortCreator,
     AddCustomTraderHelper addCustomTraderHelper
-    ): IOnLoad
+    ) : IOnLoad
 {
     private readonly TraderConfig _traderConfig = configServer.GetConfig<TraderConfig>();
     private readonly RagfairConfig _ragfairConfig = configServer.GetConfig<RagfairConfig>();
     private string PathToMod => modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
     private readonly string RoublesString = Money.ROUBLES.ToString();
-    
+
     public static readonly List<MongoId> SecureContainerIds =
     [
         ItemTpl.SECURE_CONTAINER_ALPHA,
@@ -94,7 +94,7 @@ public class TraderFactory(
         // Add localization text for our trader to the database so it shows to people playing in different languages
         AddTraderToLocales(traderData);
 
-        
+
         List<TemplateItem> itemsToAdd = itemCategoryService.GetItemTemplate(traderData.BaseClasses);
 
         long successSecureCount = 0;
@@ -109,7 +109,7 @@ public class TraderFactory(
                     successSecureCount++;
                 }
             }
-            logger.Debug($"成功添加安全箱容器到Trader({traderBase.Id}){successSecureCount}个, 成功率: {(successSecureCount) /SecureContainerIds.Count:P2}");
+            logger.Debug($"成功添加安全箱容器到Trader({traderBase.Id}){successSecureCount}个, 成功率: {(successSecureCount) / SecureContainerIds.Count:P2}");
         }
 
         List<Item> complexItems = [];
@@ -117,7 +117,7 @@ public class TraderFactory(
         long successSpecialItems = 0;
         long successHasSlotsItems = 0;
         long successCommonItems = 0;
-        
+
         foreach (TemplateItem templateItem in itemsToAdd)
         {
             complexItems.Clear();
@@ -134,7 +134,7 @@ public class TraderFactory(
                 assortCreator.Export(traderBase.Id);
                 continue;
             }
-            
+
             if (itemHelper.ItemHasSlots(templateItem.Id))
             {
                 itemHelper.AddChildSlotItems(complexItems, templateItem, requiredOnly: true);
@@ -175,7 +175,7 @@ public class TraderFactory(
                     .Export(traderBase.Id);
             }
         }
-        
+
         logger.Debug($"[AllGoodsTrader] 为商人Trader({traderBase.Id})添加物品成功率: " +
                      $"{(double)(successCommonItems + successHasSlotsItems + successSpecialItems) / itemsToAdd.Count:P4}\n" +
                      $"\t{{ 普通物品: ({successCommonItems}), 有槽位物品: {successHasSlotsItems}, 特殊物品: {successSpecialItems} }} / 总物品: {itemsToAdd.Count}");
@@ -192,7 +192,7 @@ public class TraderFactory(
         // 火箭筒
         if (templateItem.Id == ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER)
         {
-            double priceRocket725Shg2 = 
+            double priceRocket725Shg2 =
                 itemCategoryService.GetItemPrice(ItemTpl.ROCKET_725_SHG2)
                 + itemCategoryService.GetItemPrice(ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER);
 
@@ -209,15 +209,15 @@ public class TraderFactory(
                 ParentId = items[0].Id.ToString(),
                 SlotId = "patron_in_weapon"
             });
-            
+
             assortCreator
                 .CreateComplexAssortItem(items)
                 .AddUnlimitedStackCount()
                 .AddMoneyCost(Money.ROUBLES, (int)priceRocket725Shg2)
                 .AddLoyaltyLevel(1);
-            
+
             logger.Debug($"处理火箭发射器{templateItem.Id}结果: {items.Count == 2}");
-            
+
             return true;
         }
 
@@ -246,7 +246,7 @@ public class TraderFactory(
                             Location = 0,
                             Upd = new Upd
                             {
-                                StackObjectsCount= stackSlot.MaxCount
+                                StackObjectsCount = stackSlot.MaxCount
                             },
                         };
                         // logger.Debug($"[AllGoodsTrader] 已添加弹药盒的弹药: {ammoInner}\n");
@@ -255,28 +255,28 @@ public class TraderFactory(
                     }
                 }
             }
-            
+
             if ((int)price <= 0)
             {
                 logger.Error($"[AllGoodsTrader] AMMO_BOX({templateItem.Id}) with child price = 0");
                 return false;
             }
-            
+
             assortCreator
                 .CreateComplexAssortItem(items)
                 .AddUnlimitedStackCount()
                 .AddMoneyCost(Money.ROUBLES, (int)price)
                 .AddLoyaltyLevel(1);
-            
+
             // 这一句不隐藏太卡了
             // logger.Debug($"处理弹药盒{templateItem.Id}结果: {items.Count == 2}"); // \n```json\n{jsonUtil.Serialize(items, true)}\n```
-            
+
             return true;
         }
 
         return false;
     }
-    
+
     public void AddTraderToLocales(TraderData traderData)
     {
         if (traderData.Locales.Count <= 0)
@@ -296,9 +296,9 @@ public class TraderFactory(
             {
                 localKey = traderData.Locales.Keys.First();
             }
-            
+
             TraderLocales traderLocales = traderData.Locales[localKey];
-            
+
             localeKvP.AddTransformer(lazyloadedLocaleData =>
             {
                 lazyloadedLocaleData!.Add($"{newTraderId} FullName", traderLocales.Name);

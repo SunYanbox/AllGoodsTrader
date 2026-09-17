@@ -36,7 +36,7 @@ public static class TraderConfigs
 
         return null;
     }
-    
+
     /// <summary>
     /// 武器配件商人配置
     /// </summary>
