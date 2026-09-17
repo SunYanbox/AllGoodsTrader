@@ -53,7 +53,7 @@
         <ReleaseFiles Include="$(TargetDir)**\*" />
         </ItemGroup>
         <Copy SourceFiles="@(ReleaseFiles)" DestinationFiles="@(ReleaseFiles->'$(ZipTempDir)SPT_Runtime\user\mods\$(ModAuthor)-$(AssemblyName)\%(RecursiveDir)%(Filename)%(Extension)')" />
-        <Copy SourceFiles="@(DatabasePath)" DestinationFiles="@(DatabasePath->'$(ZipTempDir)SPT_Runtime\user\mods\$(ModAuthor)-$(AssemblyName)\%(RecursiveDir)%(Filename)%(Extension)')" />
+        <Copy SourceFiles="@(DatabasePath)" DestinationFiles="@(DatabasePath->'$(ZipTempDir)SPT_Runtime\user\mods\$(ModAuthor)-$(AssemblyName)\data\%(RecursiveDir)%(Filename)%(Extension)')" />
 
         <!-- Create the ZIP -->
         <ZipDirectory SourceDirectory="$(ZipTempDir)" DestinationFile="$(ZipOutput)" Overwrite="true" />
