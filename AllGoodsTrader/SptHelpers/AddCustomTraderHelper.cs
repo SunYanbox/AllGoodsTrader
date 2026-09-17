@@ -1,31 +1,32 @@
+// 本文件的部分代码改编自 SP-Tushonka/server-mod-examples
+// Copyright (c) 2026 SP-Tushonka
+// 依据 MIT 许可证授权。完整许可证文本见 https://github.com/SP-Tushonka/server-mod-examples/blob/main/LICENSE
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Config;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.Server.Core.Utils.Cloners;
-// ReSharper disable UnusedVariable
-#pragma warning disable CS8604 // 引用类型参数可能为 null。
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8601 // 引用类型赋值可能为 null。
-#pragma warning disable CS9113 // 参数未读。
-
-
+using SPTarkov.Server.Core.Services.Locales;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 
 namespace AllGoodsTrader.SptHelpers;
 
 /// <summary>
 /// We inject this class into 'AddTraderWithDynamicAssorts' to help us with adding the new trader into the server
 /// </summary>
-[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 1)]
+[Injectable(TypePriority = OnLoadOrder.TraderRegistration + 1)]
 public class AddCustomTraderHelper(
     ISptLogger<AddCustomTraderHelper> logger,
     ICloner cloner,
-    DatabaseService databaseService,
+    TradersTable tradersTable,
+    LocaleTable localeTable,
+#pragma warning disable CS9113 // 参数未读。
     LocaleService localeService)
+#pragma warning restore CS9113 // 参数未读。
 {
+
     /// <summary>
     /// Add the traders update time for when their offers refresh
     /// </summary>
@@ -33,8 +34,7 @@ public class AddCustomTraderHelper(
     /// <param name="baseJson">json file for trader (db/base.json)</param>
     /// <param name="refreshTimeSecondsMin">How many seconds between trader stock refresh min time</param>
     /// <param name="refreshTimeSecondsMax">How many seconds between trader stock refresh max time</param>
-    public void SetTraderUpdateTime(TraderConfig traderConfig, TraderBase baseJson, int refreshTimeSecondsMin,
-        int refreshTimeSecondsMax)
+    public void SetTraderUpdateTime(TraderConfig traderConfig, TraderBase baseJson, int refreshTimeSecondsMin, int refreshTimeSecondsMax)
     {
         // Add refresh time in seconds to config
         var traderRefreshRecord = new UpdateTime
@@ -61,6 +61,7 @@ public class AddCustomTraderHelper(
         };
 
         // Create trader data ready to add to database
+#pragma warning disable CS8601 // 引用类型赋值可能为 null。
         var traderDataToAdd = new Trader
         {
             Assort = emptyTraderItemAssortObject,
@@ -74,9 +75,10 @@ public class AddCustomTraderHelper(
             },
             Dialogue = []
         };
+#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 
         // Add the new trader id and data to the server
-        if (!databaseService.GetTables().Traders.TryAdd(traderDetailsToAdd.Id, traderDataToAdd))
+        if (!tradersTable.TryAdd(traderDetailsToAdd.Id, traderDataToAdd))
         {
             //Failed to add trader!
         }
@@ -91,7 +93,7 @@ public class AddCustomTraderHelper(
     public void AddTraderToLocales(TraderBase baseJson, string firstName, string description)
     {
         // For each language, add locale for the new trader
-        var locales = databaseService.GetTables().Locales.Global;
+        var locales = localeTable.Global;
         var newTraderId = baseJson.Id;
         var fullName = baseJson.Name;
         var nickName = baseJson.Nickname;
@@ -103,10 +105,16 @@ public class AddCustomTraderHelper(
             // The transformer will make sure that each time the locales are requested, the ones added below are included
             localeKvP.AddTransformer(lazyloadedLocaleData =>
             {
+#pragma warning disable CS8602 // 解引用可能出现空引用。
                 lazyloadedLocaleData.Add($"{newTraderId} FullName", fullName);
+#pragma warning restore CS8602 // 解引用可能出现空引用。
                 lazyloadedLocaleData.Add($"{newTraderId} FirstName", firstName);
+#pragma warning disable CS8604 // 引用类型参数可能为 null。
                 lazyloadedLocaleData.Add($"{newTraderId} Nickname", nickName);
+#pragma warning restore CS8604 // 引用类型参数可能为 null。
+#pragma warning disable CS8604 // 引用类型参数可能为 null。
                 lazyloadedLocaleData.Add($"{newTraderId} Location", location);
+#pragma warning restore CS8604 // 引用类型参数可能为 null。
                 lazyloadedLocaleData.Add($"{newTraderId} Description", description);
                 return lazyloadedLocaleData;
             });
@@ -120,7 +128,7 @@ public class AddCustomTraderHelper(
     /// <param name="newAssorts">new assorts we want to add</param>
     public void OverwriteTraderAssort(string traderId, TraderAssort newAssorts)
     {
-        if (!databaseService.GetTables().Traders.TryGetValue(traderId, out var traderToEdit))
+        if (!tradersTable.TryGetValue(traderId, out var traderToEdit))
         {
             logger.Warning($"Unable to update assorts for trader: {traderId}, they couldn't be found on the server");
 

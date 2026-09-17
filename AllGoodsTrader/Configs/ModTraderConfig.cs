@@ -36,27 +36,27 @@ public sealed record ModTraderConfig : TraderBase
     [UsedImplicitly]
     [JsonIgnore]
     [JsonPropertyName("_id")]
-    public override MongoId Id { get; set; }
+    public new MongoId Id { get; set; }
 
     [UsedImplicitly]
     [JsonIgnore]
     [JsonPropertyName("avatar")]
-    public override string? Avatar { get; set; }
+    public new string? Avatar { get; set; }
 
     [UsedImplicitly]
     [JsonIgnore]
     [JsonPropertyName("location")]
-    public override string? Location { get; set; }
+    public new string? Location { get; set; }
 
     [UsedImplicitly]
     [JsonIgnore]
     [JsonPropertyName("name")]
-    public override string Name { get; set; } = string.Empty;
+    public new string Name { get; set; } = string.Empty;
 
     [UsedImplicitly]
     [JsonIgnore]
     [JsonPropertyName("nickname")]
-    public override string? Nickname { get; set; }
+    public new string? Nickname { get; set; }
 
     [UsedImplicitly]
     [JsonIgnore]

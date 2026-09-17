@@ -17,12 +17,12 @@ public class TraderData
     /// 商人的国际化数据
     /// </summary>
     public Dictionary<string, TraderLocales> Locales { get; init; } = new();
-    
+
     /// <summary>
     /// 商人的默认国际化数据
     /// </summary>
     public const string DefaultLocale = "en";
-    
+
     /// <summary>
     /// 商人头像文件名
     /// </summary>
@@ -38,16 +38,16 @@ public class TraderData
     /// 是否启用维修功能
     /// </summary>
     public bool AvailableRepair { get; set; }
-    
+
     /// <summary>
     /// 商人对应的物品类型
     /// </summary>
     public required List<MongoId> BaseClasses { get; set; }
-    
+
     /// <summary>
     /// 是否启用保险功能
     /// </summary>
     public bool AvailableInsurance { get; set; }
-    
+
     private const string ImgPath = "data/res/";
 }

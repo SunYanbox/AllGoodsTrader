@@ -2,16 +2,16 @@ using System.Reflection;
 using AllGoodsTrader.Configs;
 using AllGoodsTrader.Models;
 using JetBrains.Annotations;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
+using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
-using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Utils;
 
 namespace AllGoodsTrader.Services;
 
-[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostDBModLoader + 1)]
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.TraderRegistration - 1)]
 public sealed class ModConfigService(
     JsonUtil jsonUtil,
     ModHelper modHelper,
@@ -30,7 +30,7 @@ public sealed class ModConfigService(
     private string ConfigPath => Path.Combine(PathToMod, "data", "config.json");
     private string TradersPath => Path.Combine(PathToMod, "data", "traders");
 
-    public Task OnLoad()
+    public async Task OnLoadAsync(CancellationToken cancellation)
     {
         Directory.CreateDirectory(TradersPath);
 
@@ -38,13 +38,13 @@ public sealed class ModConfigService(
 
         foreach (MongoId traderId in TraderConfigs.ExistTraderIds)
         {
-            var traderPath = $"{traderId.ToString()}.json";
+            var traderPath = $"{traderId}.json";
             string traderConfigPath = Path.Combine(TradersPath, traderPath);
             var traderConfig = Load<ModTraderConfig>(traderConfigPath);
             Traders[traderId] = traderConfig;
         }
 
-        return Task.CompletedTask;
+        return;
     }
 
     /// <summary>

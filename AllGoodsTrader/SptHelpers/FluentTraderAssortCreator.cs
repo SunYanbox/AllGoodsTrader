@@ -1,29 +1,26 @@
+// 本文件的部分代码改编自 SP-Tushonka/server-mod-examples
+// Copyright (c) 2026 SP-Tushonka
+// 依据 MIT 许可证授权。完整许可证文本见 https://github.com/SP-Tushonka/server-mod-examples/blob/main/LICENSE
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
-// ReSharper disable GrammarMistakeInComment
-// ReSharper disable UnusedVariable
-#pragma warning disable CS8604 // 引用类型参数可能为 null。
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8601 // 引用类型赋值可能为 null。
-#pragma warning disable CS9113 // 参数未读。
+using SPTarkov.Common.Models.Logging;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 
 namespace AllGoodsTrader.SptHelpers;
 
 /// <summary>
 /// We inject this class into 'AddTraderWithDynamicAssorts' to help us add items to the trader to sell
 /// </summary>
-[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 1)]
+[Injectable(TypePriority = OnLoadOrder.TraderRegistration + 1)]
 public class FluentTraderAssortCreator(
-    DatabaseService databaseService,
+    TradersTable tradersTable,
     ISptLogger<FluentTraderAssortCreator> logger)
 {
     private readonly List<Item> _itemsToSell = [];
-    private readonly Dictionary<string, List<List<BarterScheme>>> _barterScheme = new();
-    private readonly Dictionary<string, int> _loyaltyLevel = new();
+    private readonly Dictionary<string, List<List<BarterScheme>>> _barterScheme = [];
+    private readonly Dictionary<string, int> _loyaltyLevel = [];
 
     public FluentTraderAssortCreator CreateSingleAssortItem(MongoId itemTpl, MongoId? itemId = null)
     {
@@ -53,8 +50,12 @@ public class FluentTraderAssortCreator(
 
         items[0].Upd ??= new Upd();
 
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         items[0].Upd.UnlimitedCount = false;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         items[0].Upd.StackObjectsCount = 100;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         _itemsToSell.AddRange(items);
 
@@ -63,30 +64,42 @@ public class FluentTraderAssortCreator(
 
     public FluentTraderAssortCreator AddStackCount(int stackCount)
     {
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.StackObjectsCount = stackCount;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         return this;
     }
 
     public FluentTraderAssortCreator AddUnlimitedStackCount()
     {
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.StackObjectsCount = 999999;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.UnlimitedCount = true;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         return this;
     }
 
     public FluentTraderAssortCreator MakeStackCountUnlimited()
     {
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.StackObjectsCount = 999999;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         return this;
     }
 
     public FluentTraderAssortCreator AddBuyRestriction(int maxBuyLimit)
     {
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.BuyRestrictionMax = maxBuyLimit;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         _itemsToSell[0].Upd.BuyRestrictionCurrent = 0;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         return this;
     }
@@ -158,9 +171,12 @@ public class FluentTraderAssortCreator(
     /// <param name="traderId">Id of trader to add assort to</param>
     public FluentTraderAssortCreator? Export(string traderId)
     {
-        var traderData = databaseService.GetTables().Traders.GetValueOrDefault(traderId);
+        var traderData = tradersTable.GetValueOrDefault(traderId);
 
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         var rootItemAddedId = _itemsToSell.FirstOrDefault().Id;
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
         if (traderData.Assort.Items.Exists(x => x.Id == rootItemAddedId))
         {
             logger.Error($"Unable to add complex item with item key: {_itemsToSell[0].Id}, key already in use");
@@ -171,6 +187,7 @@ public class FluentTraderAssortCreator(
 
             return null;
         }
+#pragma warning restore CS8602 // 解引用可能出现空引用。
 
         traderData.Assort.Items.AddRange(_itemsToSell);
         traderData.Assort.BarterScheme[rootItemAddedId] = _barterScheme[rootItemAddedId];

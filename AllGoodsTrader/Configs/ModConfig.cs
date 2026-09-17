@@ -17,7 +17,9 @@ public sealed record ModConfig
     /// </summary>
     [JsonPropertyName("priceMode")]
     [UsedImplicitly]
-    public string? PriceMode { get => _priceMode ?? PriceModeEnum.Auto;
+    public string? PriceMode
+    {
+        get => _priceMode ?? PriceModeEnum.Auto;
         set
         {
             _priceMode = value switch
@@ -26,8 +28,9 @@ public sealed record ModConfig
                 PriceModeEnum.AvgRagfair => PriceModeEnum.AvgRagfair,
                 _ => PriceModeEnum.Auto
             };
-        } }
-    
-    
+        }
+    }
+
+
     [JsonIgnore] private string? _priceMode;
 }

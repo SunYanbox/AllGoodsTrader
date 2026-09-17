@@ -2,41 +2,45 @@ using System.Reflection;
 using AllGoodsTrader.Configs;
 using AllGoodsTrader.Services;
 using AllGoodsTrader.SptHelpers;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
+using SPTarkov.Server.Core.Helpers.Items;
+using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Config;
-using SPTarkov.Server.Core.Models.Utils;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Routers;
-using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Utils;
 using SPTarkov.Server.Core.Utils.Json;
 
 namespace AllGoodsTrader.Models;
 
-[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.TraderRegistration + 1)]
+// 在TraderRegistration范围内尽可能靠后
+[Injectable(InjectionType.Singleton, TypePriority =
+    OnLoadOrder.TraderRegistration + (OnLoadOrder.Routers - OnLoadOrder.TraderRegistration - 1)
+)]
 public class TraderFactory(
     TimeUtil timeUtil,
     ModHelper modHelper,
     ItemHelper itemHelper,
     ImageRouter imageRouter,
-    ConfigServer configServer,
-    DatabaseServer databaseService,
+    TraderConfig traderConfig,
+    RagfairConfig ragfairConfig,
+    TemplateTable templateTable,
+    LocaleTable localeTable,
     ISptLogger<TraderFactory> logger,
     ModConfigService modConfigService,
     ItemCategoryService itemCategoryService,
     FluentTraderAssortCreator assortCreator,
     AddCustomTraderHelper addCustomTraderHelper
-    ): IOnLoad
+    ) : IOnLoad
 {
-    private readonly TraderConfig _traderConfig = configServer.GetConfig<TraderConfig>();
-    private readonly RagfairConfig _ragfairConfig = configServer.GetConfig<RagfairConfig>();
     private string PathToMod => modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
     private readonly string RoublesString = Money.ROUBLES.ToString();
-    
+
     public static readonly List<MongoId> SecureContainerIds =
     [
         ItemTpl.SECURE_CONTAINER_ALPHA,
@@ -53,7 +57,8 @@ public class TraderFactory(
         ItemTpl.SECURE_WAIST_POUCH
     ];
 
-    public Task OnLoad()
+
+    public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         foreach (TraderData traderData in TraderConfigs.AllTraderConfigs)
         {
@@ -79,10 +84,10 @@ public class TraderFactory(
     {
         // Create a helper class and use it to register our traders image/icon + set its stock refresh time
         imageRouter.AddRoute(traderBase.Avatar!.Replace(".png", ""), System.IO.Path.Combine(PathToMod, traderData.AvatarFilePath));
-        addCustomTraderHelper.SetTraderUpdateTime(_traderConfig, traderBase, timeUtil.GetHoursAsSeconds(1), timeUtil.GetHoursAsSeconds(2));
+        addCustomTraderHelper.SetTraderUpdateTime(traderConfig, traderBase, timeUtil.GetHoursAsSeconds(1), timeUtil.GetHoursAsSeconds(2));
 
         // Add our trader to the config list, this lets it be seen by the flea market
-        _ragfairConfig.Traders.TryAdd(traderBase.Id, true);
+        ragfairConfig.Traders.TryAdd(traderBase.Id, true);
 
         // Add our trader (with no items yet) to the server database
         // An 'assort' is the term used to describe the offers a trader sells, it has 3 parts to an assort
@@ -94,7 +99,7 @@ public class TraderFactory(
         // Add localization text for our trader to the database so it shows to people playing in different languages
         AddTraderToLocales(traderData);
 
-        
+
         List<TemplateItem> itemsToAdd = itemCategoryService.GetItemTemplate(traderData.BaseClasses);
 
         long successSecureCount = 0;
@@ -102,14 +107,14 @@ public class TraderFactory(
         {
             foreach (MongoId secureContainerId in SecureContainerIds)
             {
-                if (databaseService.GetTables().Templates
+                if (templateTable
                         .Items.TryGetValue(secureContainerId, out TemplateItem? templateItem))
                 {
                     itemsToAdd.Add(templateItem);
                     successSecureCount++;
                 }
             }
-            logger.Debug($"成功添加安全箱容器到Trader({traderBase.Id}){successSecureCount}个, 成功率: {(successSecureCount) /SecureContainerIds.Count:P2}");
+            logger.Debug($"成功添加安全箱容器到Trader({traderBase.Id}){successSecureCount}个, 成功率: {(successSecureCount) / SecureContainerIds.Count:P2}");
         }
 
         List<Item> complexItems = [];
@@ -117,7 +122,7 @@ public class TraderFactory(
         long successSpecialItems = 0;
         long successHasSlotsItems = 0;
         long successCommonItems = 0;
-        
+
         foreach (TemplateItem templateItem in itemsToAdd)
         {
             complexItems.Clear();
@@ -134,7 +139,7 @@ public class TraderFactory(
                 assortCreator.Export(traderBase.Id);
                 continue;
             }
-            
+
             if (itemHelper.ItemHasSlots(templateItem.Id))
             {
                 itemHelper.AddChildSlotItems(complexItems, templateItem, requiredOnly: true);
@@ -175,7 +180,7 @@ public class TraderFactory(
                     .Export(traderBase.Id);
             }
         }
-        
+
         logger.Debug($"[AllGoodsTrader] 为商人Trader({traderBase.Id})添加物品成功率: " +
                      $"{(double)(successCommonItems + successHasSlotsItems + successSpecialItems) / itemsToAdd.Count:P4}\n" +
                      $"\t{{ 普通物品: ({successCommonItems}), 有槽位物品: {successHasSlotsItems}, 特殊物品: {successSpecialItems} }} / 总物品: {itemsToAdd.Count}");
@@ -192,7 +197,7 @@ public class TraderFactory(
         // 火箭筒
         if (templateItem.Id == ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER)
         {
-            double priceRocket725Shg2 = 
+            double priceRocket725Shg2 =
                 itemCategoryService.GetItemPrice(ItemTpl.ROCKET_725_SHG2)
                 + itemCategoryService.GetItemPrice(ItemTpl.ROCKETLAUNCHER_RSHG2_725MM_ROCKET_LAUNCHER);
 
@@ -209,15 +214,15 @@ public class TraderFactory(
                 ParentId = items[0].Id.ToString(),
                 SlotId = "patron_in_weapon"
             });
-            
+
             assortCreator
                 .CreateComplexAssortItem(items)
                 .AddUnlimitedStackCount()
                 .AddMoneyCost(Money.ROUBLES, (int)priceRocket725Shg2)
                 .AddLoyaltyLevel(1);
-            
+
             logger.Debug($"处理火箭发射器{templateItem.Id}结果: {items.Count == 2}");
-            
+
             return true;
         }
 
@@ -246,7 +251,7 @@ public class TraderFactory(
                             Location = 0,
                             Upd = new Upd
                             {
-                                StackObjectsCount= stackSlot.MaxCount
+                                StackObjectsCount = stackSlot.MaxCount
                             },
                         };
                         // logger.Debug($"[AllGoodsTrader] 已添加弹药盒的弹药: {ammoInner}\n");
@@ -255,28 +260,28 @@ public class TraderFactory(
                     }
                 }
             }
-            
+
             if ((int)price <= 0)
             {
                 logger.Error($"[AllGoodsTrader] AMMO_BOX({templateItem.Id}) with child price = 0");
                 return false;
             }
-            
+
             assortCreator
                 .CreateComplexAssortItem(items)
                 .AddUnlimitedStackCount()
                 .AddMoneyCost(Money.ROUBLES, (int)price)
                 .AddLoyaltyLevel(1);
-            
+
             // 这一句不隐藏太卡了
             // logger.Debug($"处理弹药盒{templateItem.Id}结果: {items.Count == 2}"); // \n```json\n{jsonUtil.Serialize(items, true)}\n```
-            
+
             return true;
         }
 
         return false;
     }
-    
+
     public void AddTraderToLocales(TraderData traderData)
     {
         if (traderData.Locales.Count <= 0)
@@ -284,9 +289,9 @@ public class TraderFactory(
             logger.Critical($"[AllGoodsTrader] No locales found for trader: {traderData.Id}");
             return;
         }
-        Dictionary<string, LazyLoad<Dictionary<string, string>>> locales = databaseService.GetTables().Locales.Global;
+        Dictionary<string, LazyLoad<GlobalLocaleDictionary>> locales = localeTable.Global;
         MongoId newTraderId = traderData.Id;
-        foreach ((string localeKey, LazyLoad<Dictionary<string, string>> localeKvP) in locales)
+        foreach ((string localeKey, LazyLoad<GlobalLocaleDictionary> localeKvP) in locales)
         {
             // We have to add a transformer here, because locales are lazy loaded due to them taking up huge space in memory
             // The transformer will make sure that each time the locales are requested, the ones added below are included
@@ -296,9 +301,9 @@ public class TraderFactory(
             {
                 localKey = traderData.Locales.Keys.First();
             }
-            
+
             TraderLocales traderLocales = traderData.Locales[localKey];
-            
+
             localeKvP.AddTransformer(lazyloadedLocaleData =>
             {
                 lazyloadedLocaleData!.Add($"{newTraderId} FullName", traderLocales.Name);

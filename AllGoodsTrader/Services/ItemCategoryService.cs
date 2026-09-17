@@ -1,11 +1,11 @@
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Controllers;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
+using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Ragfair;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 
 namespace AllGoodsTrader.Services;
 
@@ -16,7 +16,7 @@ namespace AllGoodsTrader.Services;
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.TraderRegistration + 1)]
 public sealed class ItemCategoryService(
     ItemHelper itemHelper,
-    DatabaseService databaseService,
+    TemplateTable templateTable,
     ModConfigService modConfigService,
     RagfairController ragfairController)
 {
@@ -32,16 +32,16 @@ public sealed class ItemCategoryService(
         {
             TemplateId = itemTplId
         }).Avg;
-        
+
         double? basePrice = modConfigService.Config.PriceMode switch
         {
             "Handbook" => handbookPrice,
             "AvgRagfair" => ragfairPrice,
             _ => GetMinValue(handbookPrice, ragfairPrice)  // 默认模式：取最小值
         };
-        
+
         return (basePrice ?? 0) * (modConfigService.Config.PriceModify ?? 1.0);
-        
+
         // 获取两个可空值中的最小值，如果其中一个为 null 则返回另一个，都为 null 则返回 null
         double? GetMinValue(double? a, double? b)
         {
@@ -59,12 +59,12 @@ public sealed class ItemCategoryService(
     /// </summary>
     public List<TemplateItem> GetItemTemplate(List<MongoId> categoryIds)
     {
-        Dictionary<MongoId, TemplateItem> templateItems = databaseService.GetItems();
+        var templateItems = templateTable.Items;
         List<TemplateItem> result = [];
-        foreach (MongoId itemTpl in 
-                 from baseClass in categoryIds 
-                 from itemTpl in itemHelper.GetItemTplsOfBaseType(baseClass.ToString()) 
-                 where itemHelper.IsValidItem(itemTpl) 
+        foreach (MongoId itemTpl in
+                 from baseClass in categoryIds
+                 from itemTpl in itemHelper.GetItemTplsOfBaseType(baseClass.ToString())
+                 where itemHelper.IsValidItem(itemTpl)
                  select itemTpl)
         {
             if (templateItems.TryGetValue(itemTpl, out TemplateItem? templateItem))
