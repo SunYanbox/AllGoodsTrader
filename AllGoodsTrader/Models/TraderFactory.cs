@@ -2,29 +2,35 @@ using System.Reflection;
 using AllGoodsTrader.Configs;
 using AllGoodsTrader.Services;
 using AllGoodsTrader.SptHelpers;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
+using SPTarkov.Server.Core.Helpers.Items;
+using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Config;
-using SPTarkov.Server.Core.Models.Utils;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Routers;
-using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Utils;
 using SPTarkov.Server.Core.Utils.Json;
 
 namespace AllGoodsTrader.Models;
 
-[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.TraderRegistration + 1)]
+// 在TraderRegistration范围内尽可能靠后
+[Injectable(InjectionType.Singleton, TypePriority =
+    OnLoadOrder.TraderRegistration + (OnLoadOrder.Routers - OnLoadOrder.TraderRegistration - 1)
+)]
 public class TraderFactory(
     TimeUtil timeUtil,
     ModHelper modHelper,
     ItemHelper itemHelper,
     ImageRouter imageRouter,
-    ConfigServer configServer,
-    DatabaseServer databaseService,
+    TraderConfig traderConfig,
+    RagfairConfig ragfairConfig,
+    TemplateTable templateTable,
+    LocaleTable localeTable,
     ISptLogger<TraderFactory> logger,
     ModConfigService modConfigService,
     ItemCategoryService itemCategoryService,
@@ -32,8 +38,6 @@ public class TraderFactory(
     AddCustomTraderHelper addCustomTraderHelper
     ) : IOnLoad
 {
-    private readonly TraderConfig _traderConfig = configServer.GetConfig<TraderConfig>();
-    private readonly RagfairConfig _ragfairConfig = configServer.GetConfig<RagfairConfig>();
     private string PathToMod => modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
     private readonly string RoublesString = Money.ROUBLES.ToString();
 
@@ -53,7 +57,8 @@ public class TraderFactory(
         ItemTpl.SECURE_WAIST_POUCH
     ];
 
-    public Task OnLoad()
+
+    public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         foreach (TraderData traderData in TraderConfigs.AllTraderConfigs)
         {
@@ -79,10 +84,10 @@ public class TraderFactory(
     {
         // Create a helper class and use it to register our traders image/icon + set its stock refresh time
         imageRouter.AddRoute(traderBase.Avatar!.Replace(".png", ""), System.IO.Path.Combine(PathToMod, traderData.AvatarFilePath));
-        addCustomTraderHelper.SetTraderUpdateTime(_traderConfig, traderBase, timeUtil.GetHoursAsSeconds(1), timeUtil.GetHoursAsSeconds(2));
+        addCustomTraderHelper.SetTraderUpdateTime(traderConfig, traderBase, timeUtil.GetHoursAsSeconds(1), timeUtil.GetHoursAsSeconds(2));
 
         // Add our trader to the config list, this lets it be seen by the flea market
-        _ragfairConfig.Traders.TryAdd(traderBase.Id, true);
+        ragfairConfig.Traders.TryAdd(traderBase.Id, true);
 
         // Add our trader (with no items yet) to the server database
         // An 'assort' is the term used to describe the offers a trader sells, it has 3 parts to an assort
@@ -102,7 +107,7 @@ public class TraderFactory(
         {
             foreach (MongoId secureContainerId in SecureContainerIds)
             {
-                if (databaseService.GetTables().Templates
+                if (templateTable
                         .Items.TryGetValue(secureContainerId, out TemplateItem? templateItem))
                 {
                     itemsToAdd.Add(templateItem);
@@ -284,9 +289,9 @@ public class TraderFactory(
             logger.Critical($"[AllGoodsTrader] No locales found for trader: {traderData.Id}");
             return;
         }
-        Dictionary<string, LazyLoad<Dictionary<string, string>>> locales = databaseService.GetTables().Locales.Global;
+        Dictionary<string, LazyLoad<GlobalLocaleDictionary>> locales = localeTable.Global;
         MongoId newTraderId = traderData.Id;
-        foreach ((string localeKey, LazyLoad<Dictionary<string, string>> localeKvP) in locales)
+        foreach ((string localeKey, LazyLoad<GlobalLocaleDictionary> localeKvP) in locales)
         {
             // We have to add a transformer here, because locales are lazy loaded due to them taking up huge space in memory
             // The transformer will make sure that each time the locales are requested, the ones added below are included

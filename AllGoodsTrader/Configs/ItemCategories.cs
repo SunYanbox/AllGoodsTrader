@@ -1,4 +1,5 @@
 using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Enums;
 
 namespace AllGoodsTrader.Configs;
 
